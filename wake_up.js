@@ -22,6 +22,9 @@ const DIARY_DIR_PATH = path.isAbsolute(DIARY_DIR_NAME)
   ? DIARY_DIR_NAME
   : path.join(__dirname, DIARY_DIR_NAME);
 
+// 批注 2026-08-03：推送标题固定为「挚」（我的名字），AI 生成的推送内容全部并入正文。
+const PUSH_TITLE = (process.env.PUSH_TITLE || "挚").trim() || "挚";
+
 function readNumberEnv(key, fallback, options = {}) {
   const value = Number(process.env[key]);
   const min = options.min ?? -Infinity;
@@ -548,24 +551,17 @@ ${historyText}`
     if (lines.length === 0) {
       console.log("\n推送内容清洗后为空，本次不发送推送\n");
       eventContent = `（${getLocalTimeString()} 自动唤醒：本次未发送推送｜原因：推送内容为空）`;
-    } else if (lines.length === 1) {
-      title = "来自AI";
-      body = lines[0].trim();
-    } else if (lines.length === 2) {
-      title = lines[0].trim();
-      body = lines[1].trim();
     } else {
-      // ≥3 行：第一行标题，剩余用空格拼接成正文
-      title = lines[0].trim();
-      body = lines.slice(1).map(l => l.trim()).join(" ");
+      // 批注 2026-08-03：标题固定为「挚」（我的名字），AI 全部内容并入正文。
+      title = PUSH_TITLE;
+      body = lines.map(l => l.trim()).join(" ");
     }
 
     if (!eventContent) {
       // 保护：截断过长正文，兼容 Bark 和 ntfy 的移动端展示。
       const safeBody = body.length > 500 ? body.substring(0, 497) + "..." : body;
-      // 若标题为空或以数字开头，加个前缀，可自行修改
-      let safeTitle = title || "来自伴侣";
-      if (/^\d/.test(safeTitle)) safeTitle = "来自伴侣｜" + safeTitle;
+      // 标题固定为「挚」，无需再改前缀。
+      let safeTitle = PUSH_TITLE;
 
       const pushResult = await sendPushNotification({ title: safeTitle, body: safeBody });
       if (!pushResult.ok) {
