@@ -339,6 +339,8 @@ function getLastUserTime(messages) {
       const content = normalizeContentToText(msg.content);
       // 批注 2026-07-15：兼容 Kelivo 时间前缀 "YYYY-MM-DDHH:mm"；
       // 旧的 "YYYY-MM-DD HH:mm" 仍然可用，避免无空格时间导致 wake-up 误判没有用户时间。
+      // 批注 2026-08-04：最新一条 user 消息若恰好没带时间前缀，就继续往前找更早的
+      // 带时间那条，避免误报"未找到用户时间"导致唤醒偶发失效。
       const parsed = parseTimelineTimestamp(content);
       if (parsed) return parsed;
     }
@@ -520,7 +522,7 @@ ${historyText}`
     console.log("\nAI 选择不发送推送\n");
     let reason = (noActionMatch[1] || "").trim();
     if (reason.startsWith("原因：") || reason.startsWith("原因:")) {
-      reason = reason.replace(/^原因[：:]\s*/, "").trim();
+      reason = reason.replace(/^原因[：:]?\s*/, "").trim();
     }
     eventContent = reason
       ? `（${getLocalTimeString()} 自动唤醒：本次未发送推送｜原因：${reason}）`
@@ -541,8 +543,8 @@ ${historyText}`
 
     // 清洗“标题：”、“正文：”前缀（如果有）
     barkText = barkText
-      .replace(/^标题[：:]\s*/gm, "")
-      .replace(/^正文[：:]\s*/gm, "");
+      .replace(/^标题[：:]?\s*/gm, "")
+      .replace(/^正文[：:]?\s*/gm, "");
 
     // 按行处理
     const lines = barkText.split("\n").filter(line => line.trim() !== "");
