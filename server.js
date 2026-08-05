@@ -733,7 +733,14 @@ app.post("/v1/chat/completions", async (req, reply) => {
     reply.raw.end();
   } catch (err) {
     console.error(err);
-    reply.code(500).send({ error: err.message });
+    // 批注 2026-08-05：修复 ERR_HTTP_HEADERS_SENT。
+    // 流式分支一旦 reply.raw.writeHead 开始转发，响应头已发出，此时再 send() 会二次写头导致进程崩溃。
+    // 若响应已开始，直接断开连接；否则才正常回 500。
+    if (reply.raw.headersSent) {
+      try { reply.raw.destroy(); } catch {}
+    } else {
+      reply.code(500).send({ error: err.message });
+    }
   }
 });
 
